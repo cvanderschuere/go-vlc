@@ -10,7 +10,7 @@ package main
 
 import (
 	"fmt"
-	vlc "github.com/cvanderschuere/go-vlc"
+	vlc "go-vlc"
 	"os"
 	"time"
 )
@@ -33,43 +33,45 @@ func main() {
 
 	defer inst.Release()
 
-	// Create a new media item from an url.
-	if media, err = inst.OpenMediaUri(uri); err != nil {
-		fmt.Fprintf(os.Stderr, "[e] OpenMediaUri(): %v", err)
-		return
-	}
+	for i:=0;i<5;i++{
+		// Create a new media item from an url.
+		if media, err = inst.OpenMediaUri(uri); err != nil {
+			fmt.Fprintf(os.Stderr, "[e] OpenMediaUri(): %v", err)
+			return
+		}
 
-	// Create a player for the created media.
-	if player, err = media.NewPlayer(); err != nil {
-		fmt.Fprintf(os.Stderr, "[e] NewPlayer(): %v", err)
+		// Create a player for the created media.
+		if player, err = media.NewPlayer(); err != nil {
+			fmt.Fprintf(os.Stderr, "[e] NewPlayer(): %v", err)
+			media.Release()
+			return
+		}
+
+		// We don't need the media anymore, now that we have the player.
 		media.Release()
-		return
+		media = nil
+
+		// get an event manager for our player.
+		if evt, err = player.Events(); err != nil {
+			fmt.Fprintf(os.Stderr, "[e] Events(): %v", err)
+			return
+		}
+
+		// Be notified when the player stops playing.
+		// This is just to demonstrate usage of event callbacks.
+		evt.Attach(vlc.MediaPlayerPlaying, handler, "Play!")
+		evt.Attach(vlc.MediaPlayerStopped, handler, "wahey!")
+
+		// Play the video.
+		player.Play()
+
+		// Give the player 10 seconds of play time.
+		time.Sleep(1e10)
+
+		// Stop playing.
+		player.Stop()
+		player.Release()
 	}
-
-	defer player.Release()
-
-	// We don't need the media anymore, now that we have the player.
-	media.Release()
-	media = nil
-
-	// get an event manager for our player.
-	if evt, err = player.Events(); err != nil {
-		fmt.Fprintf(os.Stderr, "[e] Events(): %v", err)
-		return
-	}
-
-	// Be notified when the player stops playing.
-	// This is just to demonstrate usage of event callbacks.
-	evt.Attach(vlc.MediaPlayerStopped, handler, "wahey!")
-
-	// Play the video.
-	player.Play()
-
-	// Give the player 10 seconds of play time.
-	time.Sleep(1e10)
-
-	// Stop playing.
-	player.Stop()
 
 	// exit. The defer'd calls will take care of any required cleanup.
 }
